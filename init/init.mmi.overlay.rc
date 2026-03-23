@@ -5,7 +5,7 @@ on early-init
    exec u:r:vendor_modprobe:s0 -- /vendor/bin/modprobe -r -d /vendor/lib/modules zram
 
 on fs
-   insmod /vendor/lib/modules/rbs_fod_mmi.ko
+   insmod /vendor/lib/modules/goodix_fod_mmi.ko
    insmod /vendor/lib/modules/msm_drm.ko
    insmod /vendor/lib/modules/mmi_annotate.ko
    insmod /vendor/lib/modules/mmi_info.ko
@@ -37,6 +37,13 @@ on early-boot
     # for ufs HID
     chown system system /sys/devices/platform/soc/1d84000.ufshc/ufshid/trigger
 
+    # Add for goodix fingerprint
+    chown system system /dev/goodix_fp
+    chmod 0664 /dev/goodix_fp
+
+    # for ghost log capture
+    chmod 0444 /dev/tp_tools
+
 # Create directory for wireless charge test in factory
     mkdir /data/vendor/wlc 0775 vendor_tcmd system
 
@@ -47,21 +54,14 @@ on early-boot
 on post-fs-data
     # Param updater data for various modules
     mkdir /data/vendor/param 0775 system system
-    # prepare folders for Egis FoD fingerprint sensor
-    mkdir /data/vendor/egis 0770 system system
-    mkdir /mnt/vendor/persist/egis 0770 system system
-    mkdir /data/vendor/tzstorage/egis 0770 system system
-    mkdir /data/vendor/egis/cqa  0770 system system
+    mkdir /data/vendor/gf_data 0770 system system
+    mkdir /mnt/vendor/persist/goodix 0770 system system
+    # change permission of backlight brightness for tcmd daemon
+    chmod 664 /sys/class/backlight/panel1-backlight/brightness
 
-    # Add for fod fps calibration
-    chown system system /sys/class/backlight/panel0-backlight/brightness
-    chown system system /sys/class/drm/card0-DSI-1/panelName
-    chown system system /sys/class/drm/card0-DSI-1/panelId
-    chown system system /d/dri/0/debug/motUtil
-    chmod 0666 /d/dri/0/debug/motUtil;
-    chmod 0666 /sys/class/backlight/panel0-backlight/brightness
-    chmod 0666 /sys/class/drm/card0-DSI-1/panelName
-    chmod 0666 /sys/class/drm/card0-DSI-1/panelId
+    # Add for after-sales ois gyro cal
+    mkdir /mnt/vendor/persist/camera/gyro_compat 0770 vendor_tcmd camera
+
 
 on early-boot
     # Add for egis fingerprint
@@ -72,6 +72,15 @@ on boot
     # allow TCMD to access cci for OIS test
     chmod 0660 /dev/cci_intf
     chown system camera /dev/cci_intf
+
+    # change permission of brightness
+    chown system system /sys/class/backlight/aw99703-bl/brightness
+    chmod 0666 /sys/class/backlight/aw99703-bl/brightness
+
+    #bluetooth sar
+    write /data/vendor/radio/bluetooth_sar disable
+    chmod 0644 /data/vendor/radio/bluetooth_sar
+    chown radio /data/vendor/radio/bluetooth_sar
 
     start vendor.touchRec
     # touch screen calibration file
@@ -89,6 +98,17 @@ on boot
     chmod 0660 /sys/class/touchscreen/primary/sensitivity
     chown system system /sys/class/touchscreen/primary/gesture
     chmod 0660 /sys/class/touchscreen/primary/gesture
+    chown system system /sys/class/touchscreen/primary/sample
+    chmod 0660 /sys/class/touchscreen/primary/sample
+    chown system system /sys/class/touchscreen/primary/palm_settings
+    chmod 0660 /sys/class/touchscreen/primary/palm_settings
+    chown system /system /sys/class/touchscreen/primary/stowed
+    chmod 0660 /sys/class/touchscreen/primary/stowed
+    chown system system /sys/class/touchscreen/primary/pitch
+    chmod 0660 /sys/class/touchscreen/primary/pitch
+    chown system system /sys/class/touchscreen/primary/log_trigger
+    chmod 0660 /sys/class/touchscreen/primary/log_trigger
+    chmod 0444 /dev/moto_penraw
 
     write /dev/cpuset/boost-app/cpus 4-6
     setprop debug.sf.boost_sf_on_touch true
@@ -103,11 +123,22 @@ on boot
     chmod 0660 /sys/class/power_supply/wireless/device/tx_mode
     chmod 0660 /sys/class/power_supply/wireless/device/wls_input_current_limit
 
+    # change permission for goodix TP
+    chmod 0664 /dev/gtp_tools
+
     #change vibrator test node file access permission
     chmod 0660 /sys/class/qcom-haptics/enable_play
     chown vendor_tcmd system /sys/class/qcom-haptics/enable_play
     write /sys/class/qcom-battery/wireless_fw_update_time_ms 5000
     write /sys/class/qcom-battery/wireless_fw_update 1
+
+    #change flip battery charging test command file access permission
+    chown vendor_tcmd system /sys/class/power_supply/charger/device/chg_en
+    chown vendor_tcmd system /sys/class/power_supply/charger/device/charger_suspend
+    chown vendor_tcmd system /sys/class/power_supply/charger/device/high_load_en
+    chown vendor_tcmd system /sys/class/power_supply/charger/device/low_load_en
+    chown vendor_tcmd system /sys/class/power_supply/charger/input_current_limit
+    chown vendor_tcmd system /sys/class/power_supply/charger/constant_charge_current
 
     # Set wlc perms for HAL
     chown system system /sys/class/power_supply/wireless/device/wlc_light_ctl
@@ -122,6 +153,10 @@ on boot
    chown cameraserver cameraserver /sys/devices/platform/soc/soc:mot,cam-actuator/onekey_actuator
    chmod 0660 /sys/devices/platform/soc/soc:mot,cam-actuator/onekey_actuator
 
+    # mdm_cutback can access HAC switch state
+    chmod 0644 /data/vendor/radio/hac_on
+    chown radio /data/vendor/radio/hac_on
+
 service capsense_reset /system/vendor/bin/capsense_reset
    class core
    user system
@@ -133,10 +168,12 @@ on property:sys.boot_completed=1
     #change adsp pmic test command file access permission
     chown vendor_tcmd system /sys/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:mmi,qti-glink-charger/tcmd
     chown vendor_tcmd system /sys/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:mmi,qti-glink-charger/force_pmic_icl
+    chown vendor_tcmd system /sys/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:mmi,qti-glink-charger/force_usb_suspend
     chown vendor_tcmd system /sys/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:mmi,qti-glink-charger/addr
     chown vendor_tcmd system /sys/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:mmi,qti-glink-charger/data
     chmod 0660 /sys/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:mmi,qti-glink-charger/tcmd
     chmod 0660 /sys/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:mmi,qti-glink-charger/force_pmic_icl
+    chmod 0660 /sys/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:mmi,qti-glink-charger/force_usb_suspend
     chmod 0660 /sys/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:mmi,qti-glink-charger/addr
     chmod 0660 /sys/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:mmi,qti-glink-charger/data
 
@@ -160,6 +197,33 @@ on property:vendor.post_boot.parsed=1
     write /sys/devices/system/cpu/cpu4/core_ctl/enable 0
     write /sys/devices/system/cpu/cpu7/core_ctl/enable 0
 
+on property:vendor.audio.hac_on=true
+    write /data/vendor/radio/hac_on enabled
+
+on property:vendor.audio.hac_on=false
+    write /data/vendor/radio/hac_on disabled
+
+on init && property:ro.boot.cid=0x0000
+    write /sys/module/sgm4154x_charger_lite/parameters/paired_vbat_panic_enabled 1
+
+on init && property:ro.boot.chg_panic_enabled=false
+    write /sys/module/sgm4154x_charger_lite/parameters/paired_vbat_panic_enabled 0
+
+on init && property:ro.boot.chg_panic_enabled=true
+    write /sys/module/sgm4154x_charger_lite/parameters/paired_vbat_panic_enabled 1
+
+on property:vendor.bluetooth.sar_state=connect
+    write /data/vendor/radio/bluetooth_sar connect
+
+on property:vendor.bluetooth.sar_state=disconnect
+    write /data/vendor/radio/bluetooth_sar disconnect
+
+on property:sys.usb.accessory_current_limit=1
+    write /sys/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:mmi,qti-glink-charger/force_pmic_icl 1000
+
+on property:sys.usb.accessory_current_limit=0
+    write /sys/devices/platform/soc/soc:qcom,pmic_glink/soc:qcom,pmic_glink:mmi,qti-glink-charger/force_pmic_icl 0
+
 service nqnfcinfo /vendor/bin/nqnfcinfo
     class late_start
     group nfc
@@ -167,11 +231,11 @@ service nqnfcinfo /vendor/bin/nqnfcinfo
     oneshot
 
 on property:vendor.qti.nfc.chipid=0xca
-    setprop persist.vendor.nfc.config_file_name libnfc-PN560.conf
+    setprop persist.vendor.nfc.config_file_name libnfc-PN560_38_4MHZ.conf
     start vendor.nfc_hal_service
 
 on property:vendor.qti.nfc.chipid=0xc1
-    setprop persist.vendor.nfc.config_file_name libnfc-SN220-UICC.conf
+    setprop persist.vendor.nfc.config_file_name libnfc-SN220_38_4MHZ_UICC.conf
     start vendor.nfc_hal_service
 
 service vendor.nfc_hal_service /vendor/bin/hw/android.hardware.nfc-service.nxp
