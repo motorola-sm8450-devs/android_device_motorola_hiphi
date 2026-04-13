@@ -1,6 +1,6 @@
 #!/usr/bin/env -S PYTHONPATH=../../../tools/extract-utils python3
 #
-# SPDX-FileCopyrightText: 2024 The LineageOS Project
+# SPDX-FileCopyrightText: The LineageOS Project
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,7 +10,10 @@ from extract_utils.fixups_blob import (
     blob_fixup,
     blob_fixups_user_type,
 )
-from extract_utils.fixups_lib import lib_fixups
+from extract_utils.fixups_lib import (
+    lib_fixups,
+    lib_fixups_user_type,
+)
 from extract_utils.main import (
     ExtractUtils,
     ExtractUtilsModule,
@@ -55,6 +58,9 @@ def blob_fixup_graphic_buffer_size(
                 f.seek(int(offset[:-1], 16))
                 f.write(b'\x00\xa6\x81\x52')  # AArch64 mov w0, #0xd30
 
+lib_fixups: lib_fixups_user_type = {
+    **lib_fixups,
+}
 
 blob_fixups: blob_fixups_user_type = {
     'vendor/lib64/libcamximageformatutils.so': blob_fixup().replace_needed(
@@ -98,5 +104,7 @@ module = ExtractUtilsModule(
 )
 
 if __name__ == '__main__':
-    utils = ExtractUtils.device_with_common(module, 'sm8475-common', module.vendor)
+    utils = ExtractUtils.device_with_common(
+        module, 'sm8475-common', module.vendor
+    )
     utils.run()
