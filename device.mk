@@ -21,6 +21,9 @@ PRODUCT_SHIPPING_API_LEVEL := $(BOARD_SHIPPING_API_LEVEL)
 # EUICC opt-out
 TARGET_NO_EUICC := true
 
+# Strongbox opt-out
+TARGET_NO_STRONGBOX := true
+
 # Inherit from motorola sm8475-common
 $(call inherit-product, device/motorola/sm8475-common/sm8475.mk)
 
