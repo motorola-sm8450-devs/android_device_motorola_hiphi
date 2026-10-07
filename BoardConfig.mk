@@ -11,9 +11,13 @@ include device/motorola/sm8475-common/BoardConfigCommon.mk
 # Bootloader
 TARGET_BOOTLOADER_BOARD_NAME := hiphi
 
+# DTB
+TARGET_MERGE_DTBS_WILDCARD ?= waipio*base
+
 # Kernel
 TARGET_KERNEL_CONFIG += \
-	vendor/ext_config/moto-waipio-hiphi.config
+	vendor/ext_config/moto-waipio-hiphi.config \
+	vendor/ext_config/moto-waipio-gki.config
 
 # Partitions
 BOARD_MOT_DP_GROUP_SIZE := 9659482112 # ( BOARD_SUPER_PARTITION_SIZE - 4MB )
